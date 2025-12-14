@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>我们的爱心小厨</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 基础适配设置 */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #fdf2f8;
+            height: 100dvh; 
+            width: 100%;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+        .safe-bottom { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
+        
+        /* 动画 */
+        @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .anim-pop { animation: pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .strike-through { text-decoration: line-through; color: #9ca3af; background-color: #f3f4f6; }
+    </style>
+</head>
+<body class="flex flex-col text-gray-800 max-w-lg mx-auto bg-pink-50 shadow-2xl relative">
+
+    <header class="flex-none bg-gradient-to-r from-pink-400 to-rose-400 pt-safe-top px-5 pb-4 shadow-sm z-20">
+        <div style="height: env(safe-area-inset-top);"></div> 
+        <div class="flex justify-between items-center mt-2">
+            <div>
+                <h1 class="text-xl font-bold text-white tracking-wide" id="headerTitle">今天吃什么 🥢</h1>
+                <p class="text-pink-100 text-xs opacity-90">居家小助手 Pro</p>
+            </div>
+            <button id="randomBtn" onclick="pickRandomDish()" class="hidden bg-white text-pink-500 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg active:scale-90 transition-transform flex items-center gap-1">
+                <span>🎲</span> 帮我选
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto no-scrollbar p-4 pb-20 relative bg-pink-50/30" id="mainContainer">
+        
+        <div id="tab-home">
+            <div class="sticky top-0 z-10 bg-white/90 backdrop-blur-md p-3 rounded-2xl shadow-sm border border-pink-100 mb-4">
+                <div class="flex gap-2">
+                    <input type="text" id="dishInput" placeholder="想吃啥？" 
+                        class="flex-1 min-w-0 bg-gray-50 px-4 py-2.5 rounded-xl text-sm border border-gray-100 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-all">
+                    <button onclick="addDish()" class="flex-none w-10 h-10 bg-pink-500 text-white rounded-xl flex items-center justify-center shadow-md active:scale-90 transition">
+                        <span class="text-xl font-bold">+</span>
+                    </button>
+                </div>
+                <div class="flex gap-2 mt-2 overflow-x-auto no-scrollbar">
+                    <button onclick="openMenuModal()" class="flex-none px-3 py-1 bg-orange-50 text-orange-600 rounded-lg text-xs font-bold border border-orange-100">📖 翻菜谱</button>
+                    <button onclick="addQuick('米饭')" class="flex-none px-3 py-1 bg-white border border-gray-200 text-gray-500 rounded-lg text-xs">🍚 米饭</button>
+                    <button onclick="addQuick('快乐水')" class="flex-none px-3 py-1 bg-white border border-gray-200 text-gray-500 rounded-lg text-xs">🥤 快乐水</button>
+                </div>
+            </div>
+
+            <div id="menuList" class="space-y-2.5 pb-10"></div>
+            <div id="emptyMenu" class="hidden flex flex-col items-center justify-center pt-20 opacity-40">
+                <span class="text-4xl mb-2">🥣</span><p class="text-xs">肚子空空，快点菜</p>
+            </div>
+        </div>
+
+        <div id="tab-shop" class="hidden">
+            <div class="sticky top-0 z-10 bg-white/90 backdrop-blur-md p-3 rounded-2xl shadow-sm border border-green-100 mb-4">
+                <div class="flex gap-2">
+                    <input type="text" id="shopInput" placeholder="要买啥？(如: 葱, 酱油)" 
+                        class="flex-1 min-w-0 bg-gray-50 px-4 py-2.5 rounded-xl text-sm border border-gray-100 focus:outline-none focus:ring-2 focus:ring-green-400 transition-all">
+                    <button onclick="addShopItem()" class="flex-none w-10 h-10 bg-green-500 text-white rounded-xl flex items-center justify-center shadow-md active:scale-90 transition">
+                        <span class="text-xl font-bold">+</span>
+                    </button>
+                </div>
+            </div>
+            <h3 class="text-xs font-bold text-gray-400 mb-2 ml-1">待购清单 (点击划掉)</h3>
+            <div id="shopList" class="space-y-2 pb-10"></div>
+            <div id="emptyShop" class="hidden text-center text-gray-300 mt-20 text-xs">冰箱是满的，无需采购</div>
+        </div>
+
+        <div id="tab-history" class="hidden">
+            <h3 class="text-xs font-bold text-gray-400 mb-2 ml-1">最近吃过的 50 顿</h3>
+            <div id="historyList" class="space-y-2"></div>
+        </div>
+
+    </main>
+
+    <nav class="flex-none glass-nav safe-bottom z-30 w-full">
+        <div class="flex justify-around items-center h-14">
+            <button onclick="switchPage('home')" id="nav-home" class="nav-btn flex flex-col items-center justify-center w-full h-full text-pink-500 transition">
+                <span class="text-xl mb-0.5">🍽️</span><span class="text-[10px] font-bold">点菜</span>
+            </button>
+            <button onclick="switchPage('shop')" id="nav-shop" class="nav-btn flex flex-col items-center justify-center w-full h-full text-gray-400 transition">
+                <span class="text-xl mb-0.5">🛒</span><span class="text-[10px] font-medium">买菜</span>
+            </button>
+            <button onclick="switchPage('history')" id="nav-history" class="nav-btn flex flex-col items-center justify-center w-full h-full text-gray-400 transition">
+                <span class="text-xl mb-0.5">📜</span><span class="text-[10px] font-medium">记录</span>
+            </button>
+        </div>
+    </nav>
+
+    <div id="randomModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center backdrop-blur-sm" onclick="closeRandom()">
+        <div class="bg-white p-6 rounded-2xl w-4/5 max-w-xs text-center shadow-2xl anim-pop" onclick="event.stopPropagation()">
+            <div class="text-4xl mb-3">🎉</div>
+            <h3 class="text-gray-500 text-xs mb-1">天意决定，今天吃：</h3>
+            <div id="randomResult" class="text-2xl font-bold text-pink-600 mb-6">红烧肉</div>
+            <button onclick="closeRandom()" class="bg-pink-500 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-md w-full">好的！</button>
+        </div>
+    </div>
+
+    <div id="menuModal" class="fixed inset-0 bg-black/40 z-50 hidden backdrop-blur-sm" onclick="closeMenuModal()">
+        <div class="absolute bottom-0 w-full bg-white rounded-t-3xl h-[60vh] max-w-lg mx-auto left-0 right-0 flex flex-col safe-bottom shadow-2xl" onclick="event.stopPropagation()">
+            <div class="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-3xl">
+                <span class="font-bold text-gray-700">翻翻菜谱</span>
+                <button onclick="closeMenuModal()" class="w-8 h-8 flex items-center justify-center bg-gray-200 rounded-full text-gray-500 text-sm">✕</button>
+            </div>
+            <div class="flex flex-1 overflow-hidden">
+                <div class="w-24 bg-gray-50 overflow-y-auto no-scrollbar border-r text-xs">
+                    <div id="categories" class="pb-10"></div>
+                </div>
+                <div class="flex-1 overflow-y-auto no-scrollbar p-3 bg-white">
+                    <div id="dishesContainer" class="grid grid-cols-2 gap-2 pb-10"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getDatabase, ref, push, onValue, remove, update, query, limitToLast } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDE5IPV5yTOcbTd42ZOXOoowRK2uxcyNHI",
+            authDomain: "love-menu-e5cbc.firebaseapp.com",
+            databaseURL: "https://love-menu-e5cbc-default-rtdb.firebaseio.com",
+            projectId: "love-menu-e5cbc",
+            storageBucket: "love-menu-e5cbc.firebasestorage.app",
+            messagingSenderId: "597913414244",
+            appId: "1:597913414244:web:238fc63f4f8dd177fa8d71",
+            measurementId: "G-YQZTPMNFKE"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const menuRef = ref(db, 'menu');
+        const shopRef = ref(db, 'shopping'); // 新增数据库节点
+        const historyRef = ref(db, 'history');
+
+        // 缓存当前菜单数据用于抽签
+        let currentMenuData = [];
+
+        // --- 1. 菜单逻辑 ---
+        onValue(menuRef, (snapshot) => {
+            const list = document.getElementById('menuList');
+            const empty = document.getElementById('emptyMenu');
+            const btn = document.getElementById('randomBtn');
+            list.innerHTML = "";
+            currentMenuData = []; // 重置缓存
+            
+            const data = snapshot.val();
+            if (!data) {
+                empty.classList.remove('hidden');
+                btn.classList.add('hidden'); // 没菜的时候不显示抽签
+                return;
+            }
+            empty.classList.add('hidden');
+            btn.classList.remove('hidden');
+
+            Object.entries(data).forEach(([key, item]) => {
+                currentMenuData.push(item.name); // 存入缓存
+                const el = document.createElement('div');
+                el.className = "flex justify-between items-center bg-white p-3.5 rounded-xl border border-pink-50 shadow-sm anim-pop";
+                el.innerHTML = `
+                    <span class="text-gray-800 font-medium ml-1 text-sm">${item.name}</span>
+                    <div class="flex gap-2">
+                        <button onclick="window.finishDish('${key}', '${item.name}')" class="w-8 h-8 rounded-full bg-green-50 text-green-500 border border-green-100 flex items-center justify-center">✓</button>
+                        <button onclick="window.deleteItem('menu', '${key}')" class="w-8 h-8 rounded-full bg-gray-50 text-gray-300 border border-gray-100 flex items-center justify-center">✕</button>
+                    </div>
+                `;
+                list.appendChild(el);
+            });
+        });
+
+        // --- 2. 买菜清单逻辑 (新) ---
+        onValue(shopRef, (snapshot) => {
+            const list = document.getElementById('shopList');
+            const empty = document.getElementById('emptyShop');
+            list.innerHTML = "";
+            const data = snapshot.val();
+
+            if (!data) { empty.classList.remove('hidden'); return; }
+            empty.classList.add('hidden');
+
+            Object.entries(data).forEach(([key, item]) => {
+                const isDone = item.status === 'done';
+                const el = document.createElement('div');
+                // 根据状态改变样式
+                el.className = `flex justify-between items-center p-3 rounded-xl border transition-all anim-pop ${isDone ? 'bg-gray-50 border-gray-100' : 'bg-white border-green-50 shadow-sm'}`;
+                el.innerHTML = `
+                    <div class="flex items-center gap-3 flex-1 cursor-pointer" onclick="window.toggleShop('${key}', '${item.status || 'todo'}')">
+                        <div class="w-5 h-5 rounded border flex items-center justify-center ${isDone ? 'bg-green-400 border-green-400' : 'border-gray-300'}">
+                            ${isDone ? '<span class="text-white text-xs">✓</span>' : ''}
+                        </div>
+                        <span class="text-sm ${isDone ? 'line-through text-gray-400' : 'text-gray-700'}">${item.name}</span>
+                    </div>
+                    <button onclick="window.deleteItem('shopping', '${key}')" class="p-2 text-gray-300 hover:text-red-400">✕</button>
+                `;
+                list.appendChild(el);
+            });
+        });
+
+        // --- 3. 历史记录 ---
+        onValue(query(historyRef, limitToLast(50)), (snapshot) => {
+            const list = document.getElementById('historyList');
+            list.innerHTML = "";
+            const data = snapshot.val();
+            if (data) {
+                Object.entries(data).reverse().forEach(([key, item]) => {
+                    const d = new Date(item.time);
+                    const el = document.createElement('div');
+                    el.className = "flex justify-between p-3 bg-white/50 rounded-lg border border-gray-100 text-xs text-gray-500";
+                    el.innerHTML = `<span>${item.name}</span><span>${d.getMonth()+1}/${d.getDate()}</span>`;
+                    list.appendChild(el);
+                });
+            }
+        });
+
+        // --- 全局功能函数 ---
+        window.addDish = () => addItem('dishInput', menuRef);
+        window.addShopItem = () => addItem('shopInput', shopRef);
+        window.addQuick = (name) => push(menuRef, { name, time: Date.now() });
+
+        function addItem(inputId, dbRef) {
+            const input = document.getElementById(inputId);
+            const val = input.value.trim();
+            if (val) {
+                push(dbRef, { name: val, time: Date.now(), status: 'todo' });
+                input.value = '';
+            }
+        }
+
+        window.deleteItem = (type, key) => {
+            if(confirm('确定删除吗？')) remove(ref(db, `${type}/${key}`));
+        }
+
+        window.finishDish = (key, name) => {
+            push(historyRef, { name, time: Date.now() });
+            remove(ref(db, `menu/${key}`));
+        }
+
+        // 切换买菜条目的状态
+        window.toggleShop = (key, currentStatus) => {
+            const newStatus = currentStatus === 'done' ? 'todo' : 'done';
+            update(ref(db, `shopping/${key}`), { status: newStatus });
+        }
+
+        // --- 随机抽签逻辑 ---
+        window.pickRandomDish = () => {
+            if (currentMenuData.length === 0) return;
+            const randomDish = currentMenuData[Math.floor(Math.random() * currentMenuData.length)];
+            document.getElementById('randomResult').innerText = randomDish;
+            document.getElementById('randomModal').classList.remove('hidden');
+        }
+        window.closeRandom = () => document.getElementById('randomModal').classList.add('hidden');
+
+        // --- 页面切换 ---
+        window.switchPage = (page) => {
+            ['home', 'shop', 'history'].forEach(p => {
+                const el = document.getElementById(`tab-${p}`);
+                const btn = document.getElementById(`nav-${p}`);
+                const isTarget = p === page;
+                
+                if (isTarget) {
+                    el.classList.remove('hidden');
+                    btn.classList.replace('text-gray-400', p==='shop'?'text-green-500':'text-pink-500'); // 买菜页用绿色
+                    btn.querySelector('span:last-child').classList.add('font-bold');
+                } else {
+                    el.classList.add('hidden');
+                    btn.className = "nav-btn flex flex-col items-center justify-center w-full h-full text-gray-400 transition";
+                }
+            });
+            // 动态改变标题颜色
+            const header = document.querySelector('header');
+            if(page === 'shop') {
+                header.classList.remove('from-pink-400', 'to-rose-400');
+                header.classList.add('from-emerald-400', 'to-green-500');
+                document.getElementById('headerTitle').innerText = "采购清单 🛒";
+            } else {
+                header.classList.add('from-pink-400', 'to-rose-400');
+                header.classList.remove('from-emerald-400', 'to-green-500');
+                document.getElementById('headerTitle').innerText = page === 'history' ? "吃过什么 📜" : "今天吃什么 🥢";
+            }
+        }
+    </script>
+
+    <script>
+        const menuData = {
+            "懒人": ["泡面", "速冻水饺", "蛋炒饭", "火锅丸子"],
+            "硬菜": ["红烧肉", "糖醋排骨", "可乐鸡翅", "水煮牛肉", "烤鱼"],
+            "素食": ["手撕包菜", "酸辣土豆丝", "西红柿炒蛋", "蒜蓉西兰花"],
+            "汤羹": ["紫菜蛋花汤", "冬瓜排骨汤", "玉米排骨汤", "罗宋汤"]
+        };
+        const catContainer = document.getElementById('categories');
+        const dishesContainer = document.getElementById('dishesContainer');
+        let activeCat = "懒人";
+
+        function renderMenuUI() {
+            catContainer.innerHTML = "";
+            Object.keys(menuData).forEach(cat => {
+                const btn = document.createElement('div');
+                btn.innerText = cat;
+                btn.className = `p-3 text-center text-xs font-bold cursor-pointer transition-colors border-l-2 ${cat === activeCat ? 'bg-white text-pink-500 border-pink-500' : 'text-gray-400 border-transparent hover:bg-gray-100'}`;
+                btn.onclick = () => { activeCat = cat; renderMenuUI(); renderDishes(cat); };
+                catContainer.appendChild(btn);
+            });
+            renderDishes(activeCat);
+        }
+        function renderDishes(cat) {
+            dishesContainer.innerHTML = "";
+            menuData[cat].forEach(dish => {
+                const btn = document.createElement('button');
+                btn.className = "bg-gray-50 py-2.5 px-2 rounded-lg text-xs text-gray-700 truncate active:bg-pink-100 border border-gray-100 shadow-sm";
+                btn.innerText = dish;
+                btn.onclick = () => { window.addQuick(dish); window.closeMenuModal(); };
+                dishesContainer.appendChild(btn);
+            });
+        }
+        window.openMenuModal = () => { document.getElementById('menuModal').classList.remove('hidden'); renderMenuUI(); }
+        window.closeMenuModal = () => document.getElementById('menuModal').classList.add('hidden');
+    </script>
+</body>
+</html>
